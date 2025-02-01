@@ -1,0 +1,82 @@
+# O processo de compilação do driver pode exigir pacotes adicionais, como o cabeçalho do kernel (linux-headers) e ferramentas de compilação (build-essential). Instale-os com os seguintes comandos:
+
+sudo apt update
+sudo apt install build-essential linux-headers-$(uname -r)
+
+# Primeiro, certifique-se de que o DKMS está instalado no seu sistema. No terminal, execute:
+
+sudo apt update
+sudo apt install dkms
+
+# Crie um diretório para o driver no /usr/src/:
+# sudo mkdir -p /usr/src/<nome-do-driver>-<versao> 
+
+sudo mkdir -p /usr/src/yt6801-1.0.29
+
+# Copie o código-fonte do driver para o diretório criado:
+
+sudo cp -r yt6801/* /usr/src/yt6801-1.0.29/
+
+# Crie um arquivo dkms.conf dentro do diretório do driver:
+
+sudo nano /usr/src/yt6801-1.0.29/dkms.conf
+
+# Adicione o seguinte conteúdo ao arquivo dkms.conf:
+
+PACKAGE_NAME="yt6801"
+PACKAGE_VERSION="1.0.29"
+BUILT_MODULE_NAME[0]="yt6801"
+BUILT_MODULE_LOCATION[0]="src"
+DEST_MODULE_LOCATION[0]="/updates/dkms"
+AUTOINSTALL="yes"
+MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src modules"
+CLEAN="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build/src clean"
+BUILD_EXCLUSIVE_CONFIG="BTF"
+
+
+# Limpar e Reinstalar
+
+sudo dkms remove -m yt6801 -v 1.0.29 --all
+sudo dkms add -m yt6801 -v 1.0.29
+sudo dkms build -m yt6801 -v 1.0.29
+sudo dkms install -m yt6801 -v 1.0.29
+
+# Para confirmar que o módulo foi gerado corretamente, verifique o diretório de saída da compilação. No seu caso, o módulo deve estar em:
+
+/var/lib/dkms/yt6801/1.0/build/src/yt6801.ko
+
+# Se o arquivo yt6801.ko estiver lá, a compilação foi bem-sucedida.
+
+# Execute o seguinte comando para verificar se o driver está instalado corretamente:
+
+dkms status
+
+# Adicionar o Módulo à Lista de Módulos Carregados no Boot
+
+# Para incluir o módulo no initramfs, você pode usar o arquivo de configuração /etc/initramfs-tools/modules. Adicione o nome do módulo a esse arquivo:
+
+echo "yt6801" | sudo tee -a /etc/initramfs-tools/modules
+
+# Após adicionar o módulo ao arquivo de configuração, atualize o initramfs:
+
+sudo update-initramfs -u
+
+# Agora, verifique novamente se o módulo está presente no initramfs:
+
+lsinitramfs /boot/initrd.img-$(uname -r) | grep yt6801
+
+# Para garantir que o módulo seja carregado automaticamente durante o boot, adicione-o ao arquivo /etc/modules:
+
+echo "yt6801" | sudo tee -a /etc/modules
+
+# Reinicie o sistema para testar se o módulo é carregado automaticamente:
+
+sudo reboot
+
+# Após a reinicialização, verifique se o módulo foi carregado automaticamente:
+
+lsmod | grep yt6801
+
+# Se o módulo aparecer na lista, ele foi carregado com sucesso.
+
+
